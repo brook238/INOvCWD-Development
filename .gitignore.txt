@@ -1,0 +1,6 @@
+# Ignore files in 'results' directory
+
+results/*.csv
+kankakee_20220327.asc.xml
+kankakee_20220327.prj
+PostHarvestPopulationKankakee_v2.2.0.csv
