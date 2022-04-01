@@ -1,4 +1,4 @@
-extensions [ csv ]          ;MODIFIED FOR SENSITIVITY ANALYSIS 2 MAY 2020 RECORD EACH TRANSMISSION  ;@#@#@#IMP ADDITION IN DEER MATING MODEL; line 305,7,9 cleanup due
+extensions [ csv gis ]          ;MODIFIED FOR SENSITIVITY ANALYSIS 2 MAY 2020 RECORD EACH TRANSMISSION  ;@#@#@#IMP ADDITION IN DEER MATING MODEL; line 305,7,9 cleanup due
                             ;IMP CHANGE IN MATING SUBMODEL - UPDATE CURRENT MODEL;;@#@#@#PostharvestTargetedculling:
 globals
 [
@@ -86,6 +86,8 @@ globals
   tc-tf
   ttc
   tc-cwd
+  forest-cover-raster ;20220322. Stores forest cover raster used to set projection
+  output-raster ;20220322. Stores raster of infected patches
   ]
 patches-own
 [
@@ -95,6 +97,7 @@ patches-own
   dfp
   dh
   cwd-d                                       ;cwd detected @#@#@#
+  infected? ;20220322. Stores value output to CWD distribution rasters. 0 = No CWD infected deer, 1 = At least one infected deer ever occurred in patch.
   ]
 breed [ deers deer ]
 deers-own
@@ -167,6 +170,8 @@ to setup
   ;------------------------------------------------------------------------------
   ;set myhm 0.52   ;APR2 (increase juv harvest)
   ;set myhm 0.33   ;APR1 (decrease juv male harvest)0.32
+  set forest-cover-raster gis:load-dataset "../data/kankakee_20220327.asc" ;20220322. Load raster used to set projection.
+  gis:set-world-envelope gis:envelope-of forest-cover-raster ;20220322. Set projection.
 end
 ;------------------------------------------------------------
 to setup-landscape
@@ -174,6 +179,7 @@ to setup-landscape
   if (cwd_region = "Kankakee") [ import-world "../data/PostHarvestPopulationKankakee_v2.2.0.csv" ]
   ask deers [ set hidden? TRUE ]
   random-seed new-seed
+  ask patches [ set infected? 0 ] ;20220322. Sets infected? to zero.
 end
 ;------------------------------------------------------------
 to go
@@ -185,7 +191,7 @@ to go
   set year floor (ticks / 12) + 1 ;year
   if (d = 1 or d = 7) [
     ask deers [ ht ]
-    export-view (word "CWD landscape month " ticks ".png")  ;can also export interface
+    ;export-view (word "CWD landscape month " ticks ".png")  ;can also export interface
     ]
 ;------------------------------------------------------------
 ;uncomment the following lines if you want to stop the model when there is no CWD+ deer in the model landscape
@@ -429,6 +435,22 @@ to go
     [ set plabel ""
       ]
     ]
+
+  ;20220322. Updates infected? if patch is newly infected
+  ask patches with [(pcolor = yellow or pcolor = orange) and infected? = 0] [
+    set infected? 1
+  ]
+
+  ;20220322. If month = January, export raster with infected patches
+  if export-rasters = true [
+    if d = 1 [
+      ask patches [
+      set output-raster gis:patch-dataset infected?
+      ]
+    gis:store-dataset output-raster (word "../results/cwd_dist_" year ".asc")
+    ]
+  ]
+
   tick
 end
 
@@ -3087,11 +3109,11 @@ end
 GRAPHICS-WINDOW
 788
 103
-1366
-842
+1248
+524
 -1
 -1
-10.0
+4.0
 1
 10
 1
@@ -3102,9 +3124,9 @@ GRAPHICS-WINDOW
 1
 1
 0
-56
+112
 0
-72
+102
 1
 1
 1
@@ -3230,7 +3252,7 @@ myhm
 myhm
 0
 1
-0.13
+0.25
 .01
 1
 NIL
@@ -3245,7 +3267,7 @@ fyhm
 fyhm
 0
 1
-0.21
+0.15
 .01
 1
 NIL
@@ -3290,7 +3312,7 @@ mahm
 mahm
 0
 1
-0.3
+0.4
 .01
 1
 NIL
@@ -3305,7 +3327,7 @@ fahm
 fahm
 0
 1
-0.12
+0.2
 .001
 1
 NIL
@@ -3415,7 +3437,7 @@ mf12hm
 mf12hm
 0
 1
-0.18
+0.05
 .01
 1
 NIL
@@ -3430,7 +3452,7 @@ ff12hm
 ff12hm
 0
 1
-0.13
+0.02
 .01
 1
 NIL
@@ -3775,7 +3797,7 @@ seed-infection
 seed-infection
 0
 100
-1.0
+12.0
 1
 1
 NIL
@@ -3874,6 +3896,17 @@ targeted-culling-percentage
 1
 NIL
 HORIZONTAL
+
+SWITCH
+977
+52
+1113
+85
+export-rasters
+export-rasters
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -4230,7 +4263,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.1
+NetLogo 6.2.2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
