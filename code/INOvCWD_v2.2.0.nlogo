@@ -268,8 +268,8 @@ to go
   if d = 6 [
     if year = 1 [
       let inf-focus nobody
-      set inf-focus patches with [ do = 1 ]
-      ask n-of 1 inf-focus [
+      set inf-focus patch 17 44  ; 20220503. Make CWD introduction focused on known Kankakee outbreak at patch 17 44.
+      ask inf-focus [
         set pcolor orange
         let cand-deers []
         if CWD_introduced_by = "adult-deer" [
