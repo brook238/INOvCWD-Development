@@ -88,6 +88,7 @@ globals
   tc-cwd
   forest-cover-raster ;20220322. Stores forest cover raster used to set projection
   output-raster ;20220322. Stores raster of infected patches
+  drz-raster ;20220503. Stores raster with deer reduction zones
   ]
 patches-own
 [
@@ -98,6 +99,7 @@ patches-own
   dh
   cwd-d                                       ;cwd detected @#@#@#
   infected? ;20220322. Stores value output to CWD distribution rasters. 0 = No CWD infected deer, 1 = At least one infected deer ever occurred in patch.
+  drz ;20220503. Determines whether patch is a deer reduction zone patch
   ]
 breed [ deers deer ]
 deers-own
@@ -1902,49 +1904,147 @@ to distance-to-farthest-spark
     ]
 end
 
+; 20220503. Update to include DRZ mortality
 to hunting-mortality
   if (aim < 10) [
-    ifelse (sex = 1)
-    [ if (random-float 1 < mf12hm) [
-      set tgroid groid
-      hunting-mortality-mf12
+        ifelse sex = 1 [
+          ifelse [drz] of patch-here = 1 [
+            if random-float 1 < drz-mf12hm [
+              set tgroid groid
+              hunting-mortality-mf12
+            ]
+          ]
+          [
+            if random-float 1 < mf12hm [
+              set tgroid groid
+              hunting-mortality-mf12
+            ]
+          ]
+        ]
+        [
+          ifelse [drz] of patch-here = 1 [
+            if random-float 1 < drz-ff12hm [
+              set tgroid groid
+              set twho who
+              hunting-mortality-ff12
+            ]
+          ]
+          [
+            if random-float 1 < ff12hm [
+              set tgroid groid
+              set twho who
+              hunting-mortality-ff12
+            ]
+          ]
+        ]
       ]
+      if (aim = 20) [
+        ifelse sex = 1 [
+          ifelse [drz] of patch-here = 1 [
+            if random-float 1 < drz-myhm [
+              set tgroid groid
+              hunting-mortality-my
+            ]
+          ]
+          [
+            if random-float 1 < myhm [
+              set tgroid groid
+              hunting-mortality-my
+            ]
+          ]
+        ]
+        [
+          ifelse [drz] of patch-here = 1 [
+            if random-float 1 < drz-fyhm [
+              set tgroid groid
+              set twho who
+              hunting-mortality-fy
+            ]
+          ]
+          [
+            if random-float 1 < fyhm [
+              set tgroid groid
+              set twho who
+              hunting-mortality-fy
+            ]
+          ]
+        ]
       ]
-    [ if (random-float 1 < ff12hm) [
-      set tgroid groid
-      set twho who
-      hunting-mortality-ff12
+      if (aim > 30) [
+        ifelse sex = 1 [
+          ifelse [drz] of patch-here = 1 [
+            if random-float 1 < drz-mahm [
+              set tgroid groid
+              hunting-mortality-ma
+            ]
+          ]
+          [
+            if random-float 1 < mahm [
+              set tgroid groid
+              hunting-mortality-ma
+            ]
+          ]
+        ]
+        [
+          ifelse [drz] of patch-here = 1 [
+            if random-float 1 < drz-fahm [
+              set tgroid groid
+              set twho who
+              hunting-mortality-fa
+            ]
+          ]
+          [
+            if random-float 1 < fahm [
+              set tgroid groid
+              set twho who
+              hunting-mortality-fa
+            ]
+          ]
+        ]
       ]
-      ]
-    ]
-  if (aim = 20) [
-    ifelse (sex = 1)
-    [ if (random-float 1 < myhm) [
-      set tgroid groid
-      hunting-mortality-my
-      ]
-      ]
-    [ if (random-float 1 < fyhm) [
-      set tgroid groid
-      set twho who
-      hunting-mortality-fy
-      ]
-      ]
-    ]
-  if (aim > 30) [
-    ifelse (sex = 1)
-    [ if (random-float 1 < mahm) [
-      set tgroid groid
-      hunting-mortality-ma
-      ]
-      ]
-    [ if (random-float 1 < fahm) [
-      set tgroid groid
-      set twho who
-      hunting-mortality-fa
-      ]
-      ]
-    ]
+
+;  if (aim < 10) [
+;    ifelse (sex = 1)
+;    [ if (random-float 1 < mf12hm) [
+;      set tgroid groid
+;      hunting-mortality-mf12
+;      ]
+;      ]
+;    [ if (random-float 1 < ff12hm) [
+;      set tgroid groid
+;      set twho who
+;      hunting-mortality-ff12
+;      ]
+;      ]
+;    ]
+;  if (aim = 20) [
+;    ifelse (sex = 1)
+;    [ if (random-float 1 < myhm) [
+;      set tgroid groid
+;      hunting-mortality-my
+;      ]
+;      ]
+;    [ if (random-float 1 < fyhm) [
+;      set tgroid groid
+;      set twho who
+;      hunting-mortality-fy
+;      ]
+;      ]
+;    ]
+;  if (aim > 30) [
+;    ifelse (sex = 1)
+;    [ if (random-float 1 < mahm) [
+;      set tgroid groid
+;      hunting-mortality-ma
+;      ]
+;      ]
+;    [ if (random-float 1 < fahm) [
+;      set tgroid groid
+;      set twho who
+;      hunting-mortality-fa
+;      ]
+;      ]
+;    ]
 end
 
 to hunting-mortality-mf12
@@ -3622,7 +3722,7 @@ SLIDER
 %adult-female-harvest-tested
 0
 1
-0.1
+1.0
 0.1
 1
 NIL
@@ -3904,9 +4004,139 @@ SWITCH
 85
 export-rasters
 export-rasters
-0
+1
 1
 -1000
+
+TEXTBOX
+789
+571
+939
+599
+Deer reduction zone\nmortality (annual rates)
+11
+0.0
+1
+
+SLIDER
+787
+623
+959
+656
+drz-mf6hm
+drz-mf6hm
+0
+1
+0.0
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+788
+685
+960
+718
+drz-ff6hm
+drz-ff6hm
+0
+1
+0.0
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+787
+747
+959
+780
+drz-mf12hm
+drz-mf12hm
+0
+1
+0.05
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+789
+802
+961
+835
+drz-ff12hm
+drz-ff12hm
+0
+1
+0.02
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+788
+860
+960
+893
+drz-myhm
+drz-myhm
+0
+1
+0.25
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+789
+916
+961
+949
+drz-fyhm
+drz-fyhm
+0
+1
+0.15
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+790
+972
+962
+1005
+drz-mahm
+drz-mahm
+0
+1
+0.4
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+790
+1024
+962
+1057
+drz-fahm
+drz-fahm
+0
+1
+0.2
+0.01
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
