@@ -268,7 +268,7 @@ to go
   if d = 6 [
     if year = 1 [
       let inf-focus nobody
-      set inf-focus patches with [ do = 1 ]
+      set inf-focus patches with [ (do = 1) and (pxcor <= 51) ]
       ask n-of 1 inf-focus [
         set pcolor orange
         let cand-deers []
