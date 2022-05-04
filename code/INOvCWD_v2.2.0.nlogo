@@ -88,7 +88,7 @@ globals
   tc-cwd
   forest-cover-raster ;20220322. Stores forest cover raster used to set projection
   output-raster ;20220322. Stores raster of infected patches
-  drz-raster ;20220503. Stores raster with deer reduction zones
+  drz-raster ;20220503. Stores raster with deer reduction zones. 20220504. Stores raster with DRZ and AET mortality
   ]
 patches-own
 [
@@ -99,7 +99,7 @@ patches-own
   dh
   cwd-d                                       ;cwd detected @#@#@#
   infected? ;20220322. Stores value output to CWD distribution rasters. 0 = No CWD infected deer, 1 = At least one infected deer ever occurred in patch.
-  drz ;20220503. Determines whether patch is a deer reduction zone patch
+  drz ;20220503. Determines whether patch is a deer reduction zone patch. 20220504. Stores 0 for regular hunting mortality, 1 for DRZ mortality, and 2 for AET mortality
   ]
 breed [ deers deer ]
 deers-own
@@ -124,6 +124,7 @@ deers-own
 to setup
   clear-all
   setup-landscape
+  update-drz
   reset-ticks
   ask deers with [ groid > 0 ] [
     if distance deer groid > 3 [
@@ -184,6 +185,15 @@ to setup-landscape
   ask patches [ set infected? 0 ] ;20220322. Sets infected? to zero.
 end
 ;------------------------------------------------------------
+
+;20220504. Procedure to update drz patch variable to reflect AET
+to update-drz
+  if file-exists? "../data/kankakee_aet_drz_20220503.asc" = true [
+    set drz-raster gis:load-dataset "../data/kankakee_aet_drz_20220503.asc"
+    gis:apply-raster drz-raster drz
+  ]
+end
+
 to go
   if ticks = 0 [
     set iteration (behaviorspace-run-number)                                  ;5Oct21 added for HPCC runs
@@ -1904,105 +1914,245 @@ to distance-to-farthest-spark
     ]
 end
 
-; 20220503. Update to include DRZ mortality
-to hunting-mortality
-  if (aim < 10) [
-        ifelse sex = 1 [
-          ifelse [drz] of patch-here = 1 [
-            if random-float 1 < drz-mf12hm [
-              set tgroid groid
-              hunting-mortality-mf12
-            ]
-          ]
-          [
-            if random-float 1 < mf12hm [
-              set tgroid groid
-              hunting-mortality-mf12
-            ]
-          ]
-        ]
-        [
-          ifelse [drz] of patch-here = 1 [
-            if random-float 1 < drz-ff12hm [
-              set tgroid groid
-              set twho who
-              hunting-mortality-ff12
-            ]
-          ]
-          [
-            if random-float 1 < ff12hm [
-              set tgroid groid
-              set twho who
-              hunting-mortality-ff12
-            ]
-          ]
-        ]
-      ]
-      if (aim = 20) [
-        ifelse sex = 1 [
-          ifelse [drz] of patch-here = 1 [
-            if random-float 1 < drz-myhm [
-              set tgroid groid
-              hunting-mortality-my
-            ]
-          ]
-          [
-            if random-float 1 < myhm [
-              set tgroid groid
-              hunting-mortality-my
-            ]
-          ]
-        ]
-        [
-          ifelse [drz] of patch-here = 1 [
-            if random-float 1 < drz-fyhm [
-              set tgroid groid
-              set twho who
-              hunting-mortality-fy
-            ]
-          ]
-          [
-            if random-float 1 < fyhm [
-              set tgroid groid
-              set twho who
-              hunting-mortality-fy
-            ]
-          ]
-        ]
-      ]
-      if (aim > 30) [
-        ifelse sex = 1 [
-          ifelse [drz] of patch-here = 1 [
-            if random-float 1 < drz-mahm [
-              set tgroid groid
-              hunting-mortality-ma
-            ]
-          ]
-          [
-            if random-float 1 < mahm [
-              set tgroid groid
-              hunting-mortality-ma
-            ]
-          ]
-        ]
-        [
-          ifelse [drz] of patch-here = 1 [
-            if random-float 1 < drz-fahm [
-              set tgroid groid
-              set twho who
-              hunting-mortality-fa
-            ]
-          ]
-          [
-            if random-float 1 < fahm [
-              set tgroid groid
-              set twho who
-              hunting-mortality-fa
-            ]
-          ]
-        ]
-      ]
 
+
+to hunting-mortality
+; 20220504. Update to include AET mortality
+  if (aim < 10) [
+    ifelse sex = 1 [
+      if [drz] of patch-here = 2 [
+        if random-float 1 < aet-mf12hm [
+          set tgroid groid
+          hunting-mortality-mf12
+        ]
+      ]
+      if [drz] of patch-here = 1 [
+        if random-float 1 < drz-mf12hm [
+          set tgroid groid
+          hunting-mortality-mf12
+        ]
+      ]
+      if [drz] of patch-here = 0 [
+        if random-float 1 < mf12hm [
+          set tgroid groid
+          hunting-mortality-mf12
+        ]
+      ]
+    ]
+    [
+      if [drz] of patch-here = 2 [
+        if random-float 1 < aet-ff12hm [
+          set tgroid groid
+          set twho who
+          hunting-mortality-ff12
+        ]
+      ]
+      if [drz] of patch-here = 1 [
+        if random-float 1 < drz-ff12hm [
+          set tgroid groid
+          set twho who
+          hunting-mortality-ff12
+        ]
+      ]
+      if [drz] of patch-here = 0 [
+        if random-float 1 < ff12hm [
+          set tgroid groid
+          set twho who
+          hunting-mortality-ff12
+        ]
+      ]
+    ]
+  ]
+  if (aim = 20) [
+    ifelse sex = 1 [
+      if [drz] of patch-here = 2 [
+        if random-float 1 < aet-myhm [
+          set tgroid groid
+          hunting-mortality-my
+        ]
+      ]
+      if [drz] of patch-here = 1 [
+        if random-float 1 < drz-myhm [
+          set tgroid groid
+          hunting-mortality-my
+        ]
+      ]
+      if [drz] of patch-here = 0 [
+        if random-float 1 < myhm [
+          set tgroid groid
+          hunting-mortality-my
+        ]
+      ]
+    ]
+    [
+      if [drz] of patch-here = 2 [
+        if random-float 1 < aet-fyhm [
+          set tgroid groid
+          set twho who
+          hunting-mortality-fy
+        ]
+      ]
+      if [drz] of patch-here = 1 [
+        if random-float 1 < drz-fyhm [
+          set tgroid groid
+          set twho who
+          hunting-mortality-fy
+        ]
+      ]
+      if [drz] of patch-here = 0 [
+        if random-float 1 < fyhm [
+          set tgroid groid
+          set twho who
+          hunting-mortality-fy
+        ]
+      ]
+    ]
+  ]
+  if (aim > 30) [
+    ifelse sex = 1 [
+      if [drz] of patch-here = 2 [
+        if random-float 1 < aet-mahm [
+          set tgroid groid
+          hunting-mortality-ma
+        ]
+      ]
+      if [drz] of patch-here = 1 [
+        if random-float 1 < drz-mahm [
+          set tgroid groid
+          hunting-mortality-ma
+        ]
+      ]
+      if [drz] of patch-here = 0 [
+        if random-float 1 < mahm [
+          set tgroid groid
+          hunting-mortality-ma
+        ]
+      ]
+    ]
+    [
+      if [drz] of patch-here = 2 [
+        if random-float 1 < aet-fahm [
+          set tgroid groid
+          set twho who
+          hunting-mortality-fa
+        ]
+      ]
+      if [drz] of patch-here = 1 [
+        if random-float 1 < drz-fahm [
+          set tgroid groid
+          set twho who
+          hunting-mortality-fa
+        ]
+      ]
+      if [drz] of patch-here = 0 [
+        if random-float 1 < fahm [
+          set tgroid groid
+          set twho who
+          hunting-mortality-fa
+        ]
+      ]
+    ]
+  ]
+
+; 20220503. Update to include DRZ mortality
+;  if (aim < 10) [
+;        ifelse sex = 1 [
+;          ifelse [drz] of patch-here = 1 [
+;            if random-float 1 < drz-mf12hm [
+;              set tgroid groid
+;              hunting-mortality-mf12
+;            ]
+;          ]
+;          [
+;            if random-float 1 < mf12hm [
+;              set tgroid groid
+;              hunting-mortality-mf12
+;            ]
+;          ]
+;        ]
+;        [
+;          ifelse [drz] of patch-here = 1 [
+;            if random-float 1 < drz-ff12hm [
+;              set tgroid groid
+;              set twho who
+;              hunting-mortality-ff12
+;            ]
+;          ]
+;          [
+;            if random-float 1 < ff12hm [
+;              set tgroid groid
+;              set twho who
+;              hunting-mortality-ff12
+;            ]
+;          ]
+;        ]
+;      ]
+;      if (aim = 20) [
+;        ifelse sex = 1 [
+;          ifelse [drz] of patch-here = 1 [
+;            if random-float 1 < drz-myhm [
+;              set tgroid groid
+;              hunting-mortality-my
+;            ]
+;          ]
+;          [
+;            if random-float 1 < myhm [
+;              set tgroid groid
+;              hunting-mortality-my
+;            ]
+;          ]
+;        ]
+;        [
+;          ifelse [drz] of patch-here = 1 [
+;            if random-float 1 < drz-fyhm [
+;              set tgroid groid
+;              set twho who
+;              hunting-mortality-fy
+;            ]
+;          ]
+;          [
+;            if random-float 1 < fyhm [
+;              set tgroid groid
+;              set twho who
+;              hunting-mortality-fy
+;            ]
+;          ]
+;        ]
+;      ]
+;      if (aim > 30) [
+;        ifelse sex = 1 [
+;          ifelse [drz] of patch-here = 1 [
+;            if random-float 1 < drz-mahm [
+;              set tgroid groid
+;              hunting-mortality-ma
+;            ]
+;          ]
+;          [
+;            if random-float 1 < mahm [
+;              set tgroid groid
+;              hunting-mortality-ma
+;            ]
+;          ]
+;        ]
+;        [
+;          ifelse [drz] of patch-here = 1 [
+;            if random-float 1 < drz-fahm [
+;              set tgroid groid
+;              set twho who
+;              hunting-mortality-fa
+;            ]
+;          ]
+;          [
+;            if random-float 1 < fahm [
+;              set tgroid groid
+;              set twho who
+;              hunting-mortality-fa
+;            ]
+;          ]
+;        ]
+;      ]
+
+; Original hunting mortality procedure
 ;  if (aim < 10) [
 ;    ifelse (sex = 1)
 ;    [ if (random-float 1 < mf12hm) [
@@ -4130,6 +4280,136 @@ SLIDER
 1057
 drz-fahm
 drz-fahm
+0
+1
+0.2
+0.01
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
+1002
+575
+1152
+603
+Artificial ecological trap\nmortality (annual rates)
+11
+0.0
+1
+
+SLIDER
+1000
+623
+1172
+656
+aet-mf6hm
+aet-mf6hm
+0
+1
+0.0
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+999
+689
+1171
+722
+aet-ff6hm
+aet-ff6hm
+0
+1
+0.0
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1000
+746
+1172
+779
+aet-mf12hm
+aet-mf12hm
+0
+1
+0.05
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1001
+804
+1173
+837
+aet-ff12hm
+aet-ff12hm
+0
+1
+0.02
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1001
+863
+1173
+896
+aet-myhm
+aet-myhm
+0
+1
+0.25
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1002
+917
+1174
+950
+aet-fyhm
+aet-fyhm
+0
+1
+0.15
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1003
+974
+1175
+1007
+aet-mahm
+aet-mahm
+0
+1
+0.4
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1002
+1025
+1174
+1058
+aet-fahm
+aet-fahm
 0
 1
 0.2
