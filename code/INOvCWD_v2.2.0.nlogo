@@ -89,6 +89,18 @@ globals
   forest-cover-raster ;20220322. Stores forest cover raster used to set projection
   output-raster ;20220322. Stores raster of infected patches
   drz-raster ;20220503. Stores raster with deer reduction zones. 20220504. Stores raster with DRZ and AET mortality
+  aet-mortality-mf12 ;20220504. Counter for male fawns that die in AET
+  aet-mortality-ff12 ;20220504. Counter for female fawns that die in AET
+  aet-mortality-my ;20220504. Counter for male yearlings that die in AET
+  aet-mortality-fy ;20220504. Counter for female yearlings that die in AET
+  aet-mortality-ma ;20220504. Counter for male adults that die in AET
+  aet-mortality-fa ;20220504. Counter for female adults that die in AET
+  drz-mortality-mf12 ;20220504. Counter for male fawns that die in DRZ
+  drz-mortality-ff12 ;20220504. Counter for female fawns that die in DRZ
+  drz-mortality-my ;20220504. Counter for male yearlings that die in DRZ
+  drz-mortality-fy ;20220504. Counter for female yearlings that die in DRZ
+  drz-mortality-ma ;20220504. Counter for male adults that die in DRZ
+  drz-mortality-fa ;20220504. Counter for female adults that die in DRZ
   ]
 patches-own
 [
@@ -175,6 +187,14 @@ to setup
   ;set myhm 0.33   ;APR1 (decrease juv male harvest)0.32
   set forest-cover-raster gis:load-dataset "../data/kankakee_20220327.asc" ;20220322. Load raster used to set projection.
   gis:set-world-envelope gis:envelope-of forest-cover-raster ;20220322. Set projection.
+
+  ;20220504. Create output file for AET and DRZ mortalities
+  if file-exists? "../results/aet-drz-mortality.csv" = true [
+    file-delete "../results/aet-drz-mortality.csv"
+  ]
+  file-open "../results/aet-drz-mortality.csv"
+  file-print "iteration,year,aet-mf12,aet-ff12,aet-my,aet-fy,aet-ma,aet-fa,drz-mf12,drz-ff12,drz-my,drz-fy,drz-ma,drz-fa"
+  file-close
 end
 ;------------------------------------------------------------
 to setup-landscape
@@ -198,7 +218,7 @@ to go
   if ticks = 0 [
     set iteration (behaviorspace-run-number)                                  ;5Oct21 added for HPCC runs
     ]
-  if (ticks = 300) [ stop ]       ;model is simulated for 10 years set at = 120. To run for 25 years, set at =300
+  if (ticks = 312) [ stop ]       ;model is simulated for 10 years set at = 120. To run for 25 years, set at =300
   set d remainder ticks 12 + 1    ;month
   set year floor (ticks / 12) + 1 ;year
   if (d = 1 or d = 7) [
@@ -234,6 +254,7 @@ to go
     form-bachelor-groups
     set oldm precision (count deers with [ sex = 1 and aim >= 229 ] / ma) 3
     set oldf precision (count deers with [ sex = 2 and aim >= 229 ] / fa) 3
+    reset-aet-drz-counters ;20220504. Sets AET and DRZ mortality counters to 0 each January
     ]
   if (d > 1 and d < 10) [       ;turtle procedure: bachelor group leaders assess group membership
     ask deers with [ sex = 1 and ml = 1 and gr <= 1 ] [
@@ -349,6 +370,7 @@ to go
     [ set lambda precision (ntplus1 / nt) 3 ]
     [ set lambda "NA" ]
     set vals1 (list (year) (ma) (my) (mf) (fa) (fy) (ff) (phn) (mcwd) (mycwd) (mfcwd) (fcwd) (fycwd) (ffcwd) (totcwdd))
+    update-plots
     ask deers [
       hunting-mortality
       ]
@@ -371,6 +393,7 @@ to go
       ]
     file-print""
     file-close
+    update-aet-drz-output
     ]
   set ndd 0
   if (ticks < 299) [                               ;to run the model for 10 years, set at < 119. To run the model for 25 years aet to <299
@@ -429,6 +452,7 @@ to go
     ;print (word "Proportion one mating " precision (count mated-does with [ anm = 1 ] / count mated-does) 2 )
     ;print (word "Proportion two matings " precision (count mated-does with [ anm = 2 ] / count mated-does) 2 )
     ;print (word "Proportion three matings " precision (count mated-does with [ anm = 3 ] / count mated-does) 2 )
+
   ]
 
   ask patches with [ dh != -1 ] [
@@ -1917,17 +1941,19 @@ end
 
 
 to hunting-mortality
-; 20220504. Update to include AET mortality
+; 20220504. Update to include AET mortality and update DRZ and AET mortality counters
   if (aim < 10) [
     ifelse sex = 1 [
       if [drz] of patch-here = 2 [
         if random-float 1 < aet-mf12hm [
+          set aet-mortality-mf12 aet-mortality-mf12 + 1
           set tgroid groid
           hunting-mortality-mf12
         ]
       ]
       if [drz] of patch-here = 1 [
         if random-float 1 < drz-mf12hm [
+          set drz-mortality-mf12 drz-mortality-mf12 + 1
           set tgroid groid
           hunting-mortality-mf12
         ]
@@ -1942,6 +1968,7 @@ to hunting-mortality
     [
       if [drz] of patch-here = 2 [
         if random-float 1 < aet-ff12hm [
+          set aet-mortality-ff12 aet-mortality-ff12 + 1
           set tgroid groid
           set twho who
           hunting-mortality-ff12
@@ -1949,6 +1976,7 @@ to hunting-mortality
       ]
       if [drz] of patch-here = 1 [
         if random-float 1 < drz-ff12hm [
+          set drz-mortality-ff12 drz-mortality-ff12 + 1
           set tgroid groid
           set twho who
           hunting-mortality-ff12
@@ -1967,17 +1995,20 @@ to hunting-mortality
     ifelse sex = 1 [
       if [drz] of patch-here = 2 [
         if random-float 1 < aet-myhm [
+          set aet-mortality-my aet-mortality-my + 1
           set tgroid groid
           hunting-mortality-my
         ]
       ]
       if [drz] of patch-here = 1 [
         if random-float 1 < drz-myhm [
+          set drz-mortality-my drz-mortality-my + 1
           set tgroid groid
           hunting-mortality-my
         ]
       ]
       if [drz] of patch-here = 0 [
+
         if random-float 1 < myhm [
           set tgroid groid
           hunting-mortality-my
@@ -1987,6 +2018,7 @@ to hunting-mortality
     [
       if [drz] of patch-here = 2 [
         if random-float 1 < aet-fyhm [
+          set aet-mortality-fy aet-mortality-fy + 1
           set tgroid groid
           set twho who
           hunting-mortality-fy
@@ -1994,6 +2026,7 @@ to hunting-mortality
       ]
       if [drz] of patch-here = 1 [
         if random-float 1 < drz-fyhm [
+          set drz-mortality-fy drz-mortality-fy + 1
           set tgroid groid
           set twho who
           hunting-mortality-fy
@@ -2012,12 +2045,14 @@ to hunting-mortality
     ifelse sex = 1 [
       if [drz] of patch-here = 2 [
         if random-float 1 < aet-mahm [
+          set aet-mortality-ma aet-mortality-ma + 1
           set tgroid groid
           hunting-mortality-ma
         ]
       ]
       if [drz] of patch-here = 1 [
         if random-float 1 < drz-mahm [
+          set drz-mortality-ma drz-mortality-ma + 1
           set tgroid groid
           hunting-mortality-ma
         ]
@@ -2032,6 +2067,7 @@ to hunting-mortality
     [
       if [drz] of patch-here = 2 [
         if random-float 1 < aet-fahm [
+          set aet-mortality-fa aet-mortality-fa + 1
           set tgroid groid
           set twho who
           hunting-mortality-fa
@@ -2039,6 +2075,7 @@ to hunting-mortality
       ]
       if [drz] of patch-here = 1 [
         if random-float 1 < drz-fahm [
+          set drz-mortality-fa drz-mortality-fa + 1
           set tgroid groid
           set twho who
           hunting-mortality-fa
@@ -3355,12 +3392,34 @@ to-report a15msb                            ;transmission prob from solitary ad 
   set sbmin sbmin * transmission-prob
   report (sbmin + random-float diffmaxmin)
 end
+
+;20220504. Procedure to reset AET and DRZ mortality counters
+to reset-aet-drz-counters
+  set aet-mortality-mf12 0
+  set aet-mortality-ff12 0
+  set aet-mortality-my 0
+  set aet-mortality-fy 0
+  set aet-mortality-ma 0
+  set aet-mortality-fa 0
+  set drz-mortality-mf12 0
+  set drz-mortality-ff12 0
+  set drz-mortality-my 0
+  set drz-mortality-fy 0
+  set drz-mortality-ma 0
+  set drz-mortality-fa 0
+end
+
+to update-aet-drz-output
+  file-open "../results/aet-drz-mortality.csv"
+  file-print (word iteration "," year "," aet-mortality-mf12 "," aet-mortality-ff12 "," aet-mortality-my "," aet-mortality-fy "," aet-mortality-ma "," aet-mortality-fa "," drz-mortality-mf12 "," drz-mortality-ff12 "," drz-mortality-my "," drz-mortality-fy "," drz-mortality-ma "," drz-mortality-fa)
+  file-close
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 788
 103
-1248
-524
+1208
+488
 -1
 -1
 4.0
@@ -3374,9 +3433,9 @@ GRAPHICS-WINDOW
 1
 1
 0
-112
-0
 102
+0
+93
 1
 1
 1
